@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import { useTeamData } from './hooks/useTeamData'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -20,7 +20,7 @@ import TeamShares from './components/TeamShares'
 
 const ROLE_PAGES = {
   entrenador: ['dashboard', 'live', 'matches', 'ranking', 'players', 'stats', 'trainings', 'fch', 'shares'],
-  segon_entrenador: ['dashboard', 'live', 'matches', 'ranking', 'players', 'stats', 'trainings'],
+  segon_entrenador: ['dashboard', 'live', 'matches', 'ranking', 'players', 'stats', 'trainings', 'fch'],
   jugador: ['dashboard', 'matches', 'ranking', 'players', 'stats', 'trainings'],
 }
 
@@ -41,22 +41,66 @@ function AppContent() {
 
   const [trainingView, setTrainingView] = useState('list')
   const [selectedTraining, setSelectedTraining] = useState(null)
+  
+  // Para mostrar el toast de login solo una vez
+  const loginToastShown = useRef(false)
 
+  // Mostrar toast si el usuario no ha iniciado sesión
+  useEffect(() => {
+    if (!user && !loginToastShown.current) {
+      loginToastShown.current = true
+      showToast('Has d\'iniciar sessió per veure i gestionar els teus equips', 'info')
+    }
+  }, [user])
+
+  // Obtener equipos propios (user_id) y compartidos (team_shares)
   const fetchTeams = async () => {
     if (!user) {
       setTeams([])
       setActiveTeamId(null)
       return
     }
-    const { data, error } = await supabase
+
+    // Equipos donde el usuario es propietario
+    const { data: ownedTeams, error: ownedError } = await supabase
       .from('teams')
       .select('id, name, category, season')
-    if (error) {
-      console.error('Error carregant equips:', error)
-      return
+      .eq('user_id', user.id)
+
+    if (ownedError) {
+      console.error('Error carregant equips propis:', ownedError)
     }
-    const allTeams = data || []
+
+    // Equipos donde el usuario ha sido compartido (team_shares)
+    const { data: sharedEntries, error: shareError } = await supabase
+      .from('team_shares')
+      .select('team_id, role, teams(id, name, category, season)')
+      .eq('user_id', user.id)
+
+    if (shareError) {
+      console.error('Error carregant equips compartits:', shareError)
+    }
+
+    const teamsMap = new Map()
+
+    // Añadir equipos propios (rol implícito 'entrenador')
+    ;(ownedTeams || []).forEach(team => {
+      teamsMap.set(team.id, { ...team, role: 'entrenador' })
+    })
+
+    // Añadir equipos compartidos (con el rol de team_shares)
+    ;(sharedEntries || []).forEach(entry => {
+      if (entry.teams && !teamsMap.has(entry.team_id)) {
+        teamsMap.set(entry.team_id, {
+          ...entry.teams,
+          role: entry.role
+        })
+      }
+    })
+
+    const allTeams = Array.from(teamsMap.values())
     setTeams(allTeams)
+
     if (allTeams.length > 0 && !activeTeamId) {
       setActiveTeamId(allTeams[0].id)
     } else if (allTeams.length === 0) {
@@ -110,6 +154,71 @@ function AppContent() {
     shares: 'Compartir equip',
   }
 
+  // ------------------------------
+  // PANTALLA PARA USUARIO NO AUTENTICADO
+  // ------------------------------
+  if (!user) {
+  return (
+    <div className="flex h-screen items-center justify-center p-4 bg-handball-bg">
+      <div className="max-w-md w-full bg-handball-bg2 rounded-lg p-6 text-center shadow-lg border border-handball-border">
+        <img 
+          src="/favicon.ico" 
+          alt="HandballStats" 
+          className="w-16 h-16 mx-auto mb-4 rounded-xl" 
+        />
+        <h2 className="text-xl font-bold mb-2">Benvingut a HandballStats</h2>
+        <p className="text-handball-text2 mb-6">
+          Inicia sessió per gestionar els teus equips, jugadors, partits i entrenaments.
+        </p>
+        <button
+          onClick={() => setAuthModalOpen(true)}
+          className="bg-handball-accent text-white px-6 py-2 rounded-lg text-sm font-medium"
+        >
+          Iniciar sessió
+        </button>
+        <p className="text-xs text-handball-text3 mt-4">
+          No tens compte? Registra't des del mateix diàleg.
+        </p>
+      </div>
+      {toast && <Toast key={toast.id} msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+    </div>
+  )
+}
+
+  // ------------------------------
+  // PANTALLA PARA USUARIO AUTENTICADO SIN EQUIPOS
+  // ------------------------------
+  if (user && teams.length === 0) {
+    return (
+      <div className="flex h-screen items-center justify-center p-4 bg-handball-bg">
+        <div className="max-w-md w-full bg-handball-bg2 rounded-lg p-6 text-center shadow-lg border border-handball-border">
+          <h2 className="text-xl font-bold mb-2">No tens cap equip</h2>
+          <p className="text-handball-text2 mb-6">
+            Importa un equip des d'un fitxer FCH per començar a gestionar-lo.
+          </p>
+          <FCHImport 
+            onImportTeam={handleImportTeam} 
+            showToast={showToast} 
+            user={user} 
+            standalone={true}
+          />
+          <button
+            onClick={() => signOut()}
+            className="mt-6 text-sm text-handball-accent hover:underline"
+          >
+            Tancar sessió
+          </button>
+        </div>
+        {toast && <Toast key={toast.id} msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+        <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      </div>
+    )
+  }
+
+  // ------------------------------
+  // CARGA Y ERRORES
+  // ------------------------------
   if (loading && !team && activeTeamId) {
     return <div className="flex items-center justify-center h-screen">Carregant...</div>
   }
@@ -118,6 +227,9 @@ function AppContent() {
     return <div className="text-red-500 p-4">Error: {error}</div>
   }
 
+  // ------------------------------
+  // APLICACIÓN PRINCIPAL (con sidebar y header)
+  // ------------------------------
   return (
     <div className="flex h-screen overflow-hidden">
       <div
@@ -156,16 +268,19 @@ function AppContent() {
                 </svg>
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-handball-accent rounded-md flex items-center justify-center text-white font-bold text-sm">H</div>
-                <span className="font-semibold text-sm hidden sm:inline">HandballStats</span>
+                <img 
+                  src="/favicon.ico" 
+                  alt="HandballStats" 
+                  className="w-7 h-7 rounded-md" 
+                />
+                <span className="font-semibold text-sm hidden sm:inline">{pageTitles[page]}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 md:gap-4">
               <div className="text-right">
-                <div className="text-xs md:text-sm font-medium">{pageTitles[page]}</div>
                 {team && (
-                  <div className="text-[10px] text-handball-text3 hidden sm:block">
+                  <div className="text-[12px] text-handball-text3 hidden sm:block">
                     {team.name} · {team.category}
                   </div>
                 )}
@@ -253,7 +368,7 @@ function AppContent() {
 
           {page === 'stats' && <Stats players={players} />}
 
-          {page === 'fch' && userRole === 'entrenador' && (
+          {page === 'fch' && (userRole === 'entrenador' || userRole === 'segon_entrenador') && (
             <div className="space-y-6">
               <FCHImport onImportTeam={handleImportTeam} showToast={showToast} user={user} />
               <hr className="border-handball-border" />

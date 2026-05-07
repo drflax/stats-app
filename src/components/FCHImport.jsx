@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function FCHImport({ onImportTeam, showToast, user }) {
+export default function FCHImport({ onImportTeam, showToast, user, standalone }) {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(null)
@@ -42,6 +42,22 @@ export default function FCHImport({ onImportTeam, showToast, user }) {
 
     setImporting(true)
     try {
+      // 🔍 Verificar si el equip ja existeix (mateix nom, categoria i temporada)
+      const { data: existingTeam, error: checkError } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('name', preview.teamName)
+        .eq('category', preview.category || 'Sènior')
+        .eq('season', preview.season || '2025-26')
+        .maybeSingle()
+
+      if (checkError) throw checkError
+
+      if (existingTeam) {
+        showToast('Ja existeix un equip amb aquest nom, categoria i temporada. No es pot importar duplicat.', 'error')
+        return
+      }
+
       // 1. Crear equip associat a l'usuari actual
       const { data: newTeam, error: teamError } = await supabase
         .from('teams')
@@ -128,7 +144,7 @@ export default function FCHImport({ onImportTeam, showToast, user }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className={`max-w-lg mx-auto ${standalone ? '' : 'mt-4'}`}>
       <div className="bg-handball-bg2 border border-handball-border rounded-xl">
         <div className="border-b border-handball-border px-5 py-3 font-semibold">
           Importació des d'iSquad
@@ -206,7 +222,7 @@ export default function FCHImport({ onImportTeam, showToast, user }) {
                 </div>
               )}
               <button
-                className="mt-4 bg-handball-green text-white px-4 py-2 rounded-lg text-sm font-medium"
+                className="mt-4 bg-handball-green text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                 onClick={handleImport}
                 disabled={importing}
               >

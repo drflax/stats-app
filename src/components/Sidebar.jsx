@@ -7,7 +7,7 @@ export default function Sidebar({ active, setActive, team, userRole }) {
     { id: 'players', icon: '👥', label: 'Plantilla' },
     { id: 'stats', icon: '📈', label: 'Estadístiques' },
     { id: 'trainings', icon: '🏋️', label: 'Entrenaments' },
-    { id: 'fch', icon: '🔗', label: 'Importació', roles: ['entrenador'] },
+    { id: 'fch', icon: '🔗', label: 'Importació', roles: ['entrenador', 'segon_entrenador'] },
     { id: 'shares', icon: '👤', label: 'Compartir', roles: ['entrenador'] },
   ]
 
@@ -19,7 +19,11 @@ export default function Sidebar({ active, setActive, team, userRole }) {
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-handball-border">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-handball-accent rounded-md flex items-center justify-center text-white font-bold text-sm">H</div>
+          <img 
+            src="/favicon.ico" 
+            alt="HandballStats" 
+            className="w-7 h-7 rounded-md" 
+          />
           <div>
             <div className="font-semibold text-sm">Handbol Stats</div>
             <div className="text-[9px] text-handball-text3 uppercase tracking-wide">Gestió d'equips</div>
