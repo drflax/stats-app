@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f8ef7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2c5aa0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#grad)" stroke="#ffffff" stroke-width="2" />
+  <!-- Cap del jugador -->
+  <circle cx="50" cy="38" r="8" fill="white" />
+  <!-- Cos -->
+  <path d="M50 46 L50 65" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <!-- Braç esquerre (llançament) -->
+  <path d="M50 52 L35 42" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <!-- Braç dret (balanç) -->
+  <path d="M50 52 L65 58" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <!-- Cames (salt) -->
+  <path d="M50 65 L40 78" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <path d="M50 65 L60 78" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <!-- Pilota (petit cercle a la mà esquerra) -->
+  <circle cx="33" cy="40" r="3" fill="#ffd166" />
+  <!-- Trajectòria de la pilota (línia discontínua) -->
+  <path d="M30 38 Q20 30 15 20" stroke="#ffd166" stroke-width="2" stroke-dasharray="3 3" fill="none" />
+</svg>
